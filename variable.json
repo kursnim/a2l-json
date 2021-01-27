@@ -1,0 +1,36 @@
+{
+    // 
+    // 
+    "variable": [
+        {
+            "name": "u16_test",
+            "type": "uint16",
+            "array": "[16]",
+            "conv": "0.01"
+        },
+        {
+            "name": "u32_test",
+            "type": "uint32",
+            "array": "[16][10]",
+            "conv": "0.01"
+        }
+    ],
+    "type": {
+        "uint8": "UBYTE",
+        "sint8": "SBYTE",
+        "uint16": "UWORD",
+        "sint16": "SWORD",
+        "uint32": "ULONG",
+        "sint32": "SLONG",
+        "float32": "FLOAT"
+    },
+    "type_size":{
+        "uint8": "8",
+        "sint8": "8",
+        "uint16": "16",
+        "sint16": "16",
+        "uint32": "32",
+        "sint32": "32",
+        "float32": "32"
+    }
+}
