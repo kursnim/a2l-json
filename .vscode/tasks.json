@@ -8,6 +8,7 @@
             "type": "shell",
             "command": "python3 a2l-json.py",
             "problemMatcher": [],
+            "windows":{"command": "python a2l-json.py"},
             "group": {
                 "kind": "build",
                 "isDefault": true
