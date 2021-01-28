@@ -77,7 +77,7 @@ ASAP2_VERSION 1 61\n
             )
             a2l_text += text
 
-        a2l_text += '''\n/end PROJECT\n''' 
+        a2l_text += '''\n  /end MODULE\n/end PROJECT\n''' 
 
         with open(a2l_fname, 'w') as f:
             f.write(a2l_text)
