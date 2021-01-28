@@ -2,7 +2,7 @@ import sys
 import json
 import re
 
-text_template = '''    /begin MEASUREMENT {var_name} ""
+measure_template = '''    /begin MEASUREMENT {var_name} ""
       {var_type} NO_COMPU_METHOD 0 0 0 65535
       READ_WRITE
       ECU_ADDRESS {var_addr}
@@ -12,11 +12,12 @@ text_template = '''    /begin MEASUREMENT {var_name} ""
       LAYOUT ROW_DIR
       /begin IF_DATA CANAPE_EXT
         100
-        LINK_MAP {var_name} {var_addr} 0x0 0 0x0 1 0x87 0x0
+        LINK_MAP "{var_name}._0_" {var_addr} 0x0 0 0x0 1 0x87 0x0
         DISPLAY 0 0 65535
       /end IF_DATA
-      SYMBOL_LINK {var_name} 0
-    /end MEASUREMENT\n
+      SYMBOL_LINK "{var_name}._0_" 0
+    /end MEASUREMENT\n'''
+conv_template = '''
     /begin COMPU_METHOD {var_name}.CONVERSION ""
       LINEAR "%3.1" ""
       COEFFS_LINEAR {conv} 0
@@ -44,7 +45,10 @@ class AsapJson:
         self.dic_size = dic_con['type_size']
 
     def to_a2l(self, a2l_fname):
-        a2l_text = '''ASAP2_VERSION 1 61\n/* generated a2l */\n/begin PROJECT Example ""\n  /begin MODULE CCP ""\n'''
+        a2l_text = '''/* @@@@ File written by a2l-json @@@@ */\n
+ASAP2_VERSION 1 61\n
+/begin PROJECT Example ""\n
+  /begin MODULE CCP ""\n\n'''
         for v in self.dic_var:
             m = re.search(r'(\[(?P<x>\d+)\])(\[(?P<y>\d+)\])?(\[(?P<z>\d+)\])?', v['array'])
             if m:
@@ -59,11 +63,16 @@ class AsapJson:
             else:
                 var_addr = '0x0'
 
-            text = text_template.format(
+            text = measure_template.format(
                 var_name=v['name'],
                 var_type=self.dic_type[v['type']],
                 array=array,
-                var_addr=var_addr,
+                var_addr=var_addr
+            )
+            if 'conv' in v:
+                text = text.replace('NO_COMPU_METHOD', v['name']+'.CONVERSION')
+                text += conv_template.format(
+                var_name=v['name'],
                 conv=v['conv']
             )
             a2l_text += text

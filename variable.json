@@ -3,28 +3,10 @@
   //
   "variable": [
     {
-      "name": "u16_test1",
+      "name": "u16_VS_kph_Xaxis",
       "type": "uint16",
       "array": "[16]",
       "conv": "0.01"
-    },
-    {
-      "name": "u16_test2",
-      "type": "uint16",
-      "array": "[16]",
-      "conv": "0.00390625"
-    },
-    {
-      "name": "u16_test3",
-      "type": "uint16",
-      "array": "[16][10]",
-      "conv": "0.01"
-    },
-    {
-      "name": "f32_test4",
-      "type": "float32",
-      "array": "[16]",
-      "conv": "0.00390625"
     }
   ],
   "type": {
