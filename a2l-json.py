@@ -21,7 +21,12 @@ conv_template = '''
     /begin COMPU_METHOD {var_name}.CONVERSION ""
       LINEAR "%3.1" ""
       COEFFS_LINEAR {conv} 0
-    /end COMPU_METHOD\n'''
+    /end COMPU_METHOD\n\n'''
+group_template = '''    /begin GROUP {group_name} ""
+{root}{variables}{sub_group}    /end GROUP\n\n'''
+subgroup_template = '''      /begin SUB_GROUP
+        {sub_group_list}
+      /end SUB_GROUP\n'''
     
 def read_jsonc(fname):
     with open(fname, 'r') as f:
@@ -49,13 +54,19 @@ class AsapJson:
 ASAP2_VERSION 1 61\n
 /begin PROJECT Example ""\n
   /begin MODULE CCP ""\n\n'''
+
+        dic_group = {}
+        set_group = set()
         for v in self.dic_var:
-            m = re.search(r'(\[(?P<x>\d+)\])(\[(?P<y>\d+)\])?(\[(?P<z>\d+)\])?', v['array'])
-            if m:
-                x = m.group('x') if m.group('x') else 1
-                y = m.group('y') if m.group('y') else 1
-                z = m.group('z') if m.group('z') else 1
-                array = '{0} {1} {2}'.format(x, y, z)
+            if 'array' in v:
+                m = re.search(r'(\[(?P<x>\d+)\])(\[(?P<y>\d+)\])?(\[(?P<z>\d+)\])?', v['array'])
+                if m:
+                    x = m.group('x') if m.group('x') else 1
+                    y = m.group('y') if m.group('y') else 1
+                    z = m.group('z') if m.group('z') else 1
+                    array = '{0} {1} {2}'.format(x, y, z)
+            else:
+                array = ''
 
             m = re.search(r'{0}\s+(0x[0-9a-fA-F]{{8}})'.format(v['name']), self.mapdata)
             if m:
@@ -75,9 +86,53 @@ ASAP2_VERSION 1 61\n
                 var_name=v['name'],
                 conv=v['conv']
             )
+
+            if 'group' in v:
+                set_group.add('{0}/{1}'.format(v['group'], v['name']))            
+            
             a2l_text += text
 
-        a2l_text += '''\n  /end MODULE\n/end PROJECT\n''' 
+        dic_group = {}
+        for group in set_group:
+            list_group = group.split('/')
+            for i in range(len(list_group)-2):
+                if list_group[i] not in dic_group:
+                    dic_group[list_group[i]] = {}
+                if 'sub' not in dic_group[list_group[i]]:
+                    dic_group[list_group[i]]['sub'] = set()
+                dic_group[list_group[i]]['sub'].add(list_group[i+1])
+
+            if list_group[-2] not in dic_group:
+                dic_group[list_group[-2]] = {}
+            
+            if 'var' not in dic_group[list_group[-2]]:
+                dic_group[list_group[-2]]['var'] = set()
+            dic_group[list_group[-2]]['var'].add(list_group[-1])
+
+        print(dic_group)
+
+        group_text = ''
+        for key in dic_group:
+            if 'sub' in dic_group[key]:
+                sub_group = subgroup_template.format(
+                    sub_group_list='\n        '.join(dic_group[key]['sub'])
+                )
+            else:
+                sub_group = ''
+
+            if 'var' in dic_group[key]:
+                variables = '        ' + '\n        '.join(dic_group[key]['var']) +'\n'
+            else:
+                variables = ''
+
+            group_text += group_template.format(
+                group_name=key,
+                root='',
+                variables=variables,
+                sub_group=sub_group
+            )
+
+        a2l_text += group_text + '''\n  /end MODULE\n/end PROJECT\n''' 
 
         with open(a2l_fname, 'w') as f:
             f.write(a2l_text)

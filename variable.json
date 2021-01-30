@@ -3,10 +3,32 @@
   //
   "variable": [
     {
+      "name": "u8_flag1",
+      "type": "uint8",
+      "group": "System"
+    },
+    {
+      "name": "u8_flag2",
+      "type": "uint8"
+    },
+    {
+      "name": "u8_flag3",
+      "type": "uint8",
+      "group": "System/sub5"
+    },
+    {
       "name": "u16_VS_kph_Xaxis",
       "type": "uint16",
       "array": "[16]",
-      "conv": "0.01"
+      "conv": "0.01",
+      "group": "System/SubSystem1"
+    },
+    {
+      "name": "u16_VS_Gain",
+      "type": "uint16",
+      "array": "[16]",
+      "conv": "0.02",
+      "group": "System/SubSystem1/SubSystem3/sub4"
     }
   ],
   "type": {
