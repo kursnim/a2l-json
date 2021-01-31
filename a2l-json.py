@@ -1161,10 +1161,10 @@ class AsapJson:
             return '{s}/begin IF_DATA CANAPE_EXT\n{s2}100\n{s2}LINK_MAP "{0}" 0 0 0 0 0 0 0\n{s}/end IF_DATA\n'.format(
                     text, s=' '*indent, s2=' '*(indent+2))
         def append_value(dict_obj, key, value):
-                if key not in dict_obj:
-                    dict_obj[key] = [value]
-                else:
-                    dict_obj[key].append(value)
+            if key not in dict_obj:
+                dict_obj[key] = {value}
+            else:
+                dict_obj[key].add(value)
 
         dic_g = {}
         for vname in self.list_sorted_var:
@@ -1228,6 +1228,7 @@ class AsapJson:
                 axis=axis['x'],
                 compu_method=compu_method,
                 sub_axis=''.join(sub_axis.values()))
+            measure_texts += measure_text
 
             if 'conv' in v:
                 conv_texts += conv_template.format(
@@ -1264,7 +1265,7 @@ class AsapJson:
 
             group_text += set_template_item('GROUP', key, contents)
 
-        a2l_text = begin_project + conv_texts + measure_texts + end_project
+        a2l_text = begin_project + conv_texts + measure_texts + group_text + end_project
 
         with open(a2l_fname, 'w') as f:
             f.write(a2l_text)
