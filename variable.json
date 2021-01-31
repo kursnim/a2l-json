@@ -6,6 +6,15 @@
       "name": "u8_flag1",
       "type": "uint8",
       "group": "System"
+
+    },
+    {
+      "name": "myString1",
+      "type": "uint8",
+      "A2L_TYPE": "STRING",
+      "array": "[10]",
+      "group": "System"
+
     },
     {
       "name": "u8_flag2",
@@ -19,6 +28,7 @@
     {
       "name": "u16_VS_kph_Xaxis",
       "type": "uint16",
+      "A2L_TYPE" : "MAP",
       "array": "[16]",
       "conv": "0.01",
       "group": "System/SubSystem1"
