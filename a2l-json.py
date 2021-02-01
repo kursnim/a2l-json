@@ -1,5 +1,6 @@
 import sys
 import json
+import csv
 import re
 
 begin_project = '''/* @@@@ File written by CANAPE_VERSION 14 0 39 @@@@ */
@@ -1058,7 +1059,6 @@ class AsapJson:
             self.mapdata = read_file(map_fname)
     def from_json(self, json_fname):
         dic_con = read_jsonc(json_fname)
-
         self.dic_var = dic_con['variable']
 
         # map : put last to the map caused shared axis
@@ -1068,10 +1068,18 @@ class AsapJson:
         self.list_sorted_var += [d for d in self.dic_var 
                 if 'A2L_TYPE' in self.dic_var[d] 
                 and self.dic_var[d]['A2L_TYPE'] == 'MAP']
-
         self.dic_type = dic_con['type']
         self.dic_size = dic_con['type_size']
         self.dic_range = dic_con['type_range']
+
+    def to_json(self, json_fname):
+        with open(json_fname, 'w') as f:
+            dict_json = {}
+            dict_json['variable'] = self.dic_var
+            dict_json['type'] = self.dic_type
+            dict_json['type_size'] = self.dic_size
+            dict_json['type_range'] = self.dic_range
+            json.dump(dict_json, f, indent=4)
 
     def update_a2l(self):
         if not hasattr(self, 'mapdata'):
@@ -1083,6 +1091,41 @@ class AsapJson:
         if m:
             var_addr = '0x{0}'.format(m.group(1).upper())
             print(var_addr)
+    
+    def from_csv(self, csv_fname):
+        with open(csv_fname, 'r') as f:
+            reader = csv.DictReader(f)
+            dic_var_from_csv = {}
+            for row in reader:
+                var_name = row['name']
+                dic_var_from_csv[var_name] = {}
+                for a in ['x','y','z']:
+                    shared_axis_column = 'shared_axis_{0}'.format(a)
+                    if row[shared_axis_column]:
+                        if 'shared_axis' not in dic_var_from_csv[var_name]:
+                            dic_var_from_csv[var_name]['shared_axis'] = {}
+                        dic_var_from_csv[var_name]['shared_axis'][a] = row[shared_axis_column]
+                for col in reader.fieldnames[1:-3]: # except name, shared_axis
+                    if row[col]:
+                        dic_var_from_csv[var_name].update({col:row[col]})
+            self.dic_var.update(dic_var_from_csv)
+
+    def to_csv(self, csv_fname):
+        with open(csv_fname, 'w') as f:
+            fieldnames = ['name', 'type', 'group', 'address', 'conv', 'A2L_TYPE', 'array', 'shared_axis_x', 'shared_axis_y', 'shared_axis_z']
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for vname in self.list_sorted_var:
+                v = self.dic_var[vname].copy()
+                v['name'] = vname
+                if 'shared_axis' in v:
+                    dict_shared_axis = v.pop('shared_axis')
+                    for a in ['x','y','z']:
+                        if a in dict_shared_axis:
+                            v['shared_axis_{0}'.format(a)] = dict_shared_axis[a]
+                writer.writerow(v)
+
 
     def to_a2l(self, a2l_fname):
         def apply_axis_template(axis, sub_axis):
@@ -1094,7 +1137,6 @@ class AsapJson:
                             compu_method='NO_COMPU_METHOD',
                             axis=axis[a])
                 if 'shared_axis' in v:
-                    print(v)
                     if a in v['shared_axis']:
                         if v['shared_axis'][a] in dic_shared_axis:
                             shared_a = dic_shared_axis[v['shared_axis'][a]]
@@ -1273,4 +1315,7 @@ class AsapJson:
 if __name__=='__main__':
     aj = AsapJson()
     aj.from_json('variable2.json')
-    aj.to_a2l('template.a2l')
+    aj.to_csv('template.csv')
+    # aj.to_a2l('template.a2l')
+    aj.from_csv('template.csv')
+    aj.to_json('test.json')
