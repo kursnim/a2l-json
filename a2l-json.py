@@ -830,11 +830,13 @@ OVERLOAD_INDICATION_EVENT: This means an event is set, when an overload occurs*/
         PGM_MODE_ABSOLUTE
         0x00
         0x00
-      /end PGM
+      /end PGM\n'''
+
+XCP_template='''
       /begin XCP_ON_CAN
         0x0100
-        CAN_ID_MASTER 0x0681
-        CAN_ID_SLAVE 0x0686
+        CAN_ID_MASTER 0x0{cro:03d}
+        CAN_ID_SLAVE 0x0{dto:03d}
         BAUDRATE 0x07A120
         SAMPLE_POINT 0x4B
         SAMPLE_RATE SINGLE
@@ -1127,11 +1129,11 @@ class AsapJson:
                 writer.writerow(v)
 
 
-    def to_a2l(self, a2l_fname):
+    def to_a2l(self, a2l_fname, ccp_protocol={'cro':0, 'dto':2}):
         def apply_axis_template(axis, sub_axis):
             _template = sub_axis
-            for a in ['x','y','z']:
-                if axis[a] > 1:
+            for a in ['x','y']:
+                if axis[a] >= 1:
                         _template[a] = axis_subtemplate.format(
                             var_range=var_range,
                             compu_method='NO_COMPU_METHOD',
@@ -1233,9 +1235,33 @@ class AsapJson:
                             'var_range':var_range,
                             'compu_method':compu_method,
                             }
-                elif v['A2L_TYPE'] == 'map':
+                    measure_text = template.format(
+                        var_name=vname,
+                        var_type=self.dic_type[v['type']],
+                        matrix=matrix,
+                        layout=layout,
+                        var_addr=var_addr,
+                        var_map=var_map,
+                        var_range=var_range,
+                        display_range=var_range,
+                        axis=axis['x'],
+                        compu_method=compu_method,
+                        sub_axis=''.join(sub_axis.values()))
+                elif v['A2L_TYPE'] == 'MAP':
                     template = map_template
                     sub_axis = apply_axis_template(axis, sub_axis)
+                    measure_text = template.format(
+                        var_name=vname,
+                        var_type=self.dic_type[v['type']],
+                        matrix=matrix,
+                        layout=layout,
+                        var_addr=var_addr,
+                        var_map=var_map,
+                        var_range=var_range,
+                        display_range=var_range,
+                        axis=axis['x'],
+                        compu_method=compu_method,
+                        sub_axis=''.join(sub_axis.values()))
                 elif v['A2L_TYPE'] == 'STRING':
                     contents = set_content('ASCII {var_addr} __{var_type}_Z 0 NO_COMPU_METHOD 0 255'.format(
                         var_addr=var_addr,
@@ -1243,11 +1269,11 @@ class AsapJson:
                     contents += set_content('NUMBER {0}'.format(x))
                     contents += set_link_map(vname)
                     measure_text = set_template_item('CHARACTERISTIC', vname, contents)
-                elif v['A2L_TYPE'] == 'MAP':
-                    contents = set_content('MAP 0 RL_{0} 0 NO_COMPU_METHOD 0 255'.format(var_type))
-                    contents += set_content('NUMBER {0}'.format(x))
-                    contents += set_link_map(vname)
-                    measure_text = set_template_item('CHARACTERISTIC', vname, contents)
+                # elif v['A2L_TYPE'] == 'MAP':
+                #     contents = set_content('MAP 0 RL_{0} 0 NO_COMPU_METHOD 0 255'.format(var_type))
+                #     contents += set_content('NUMBER {0}'.format(x))
+                #     contents += set_link_map(vname)
+                #     measure_text = set_template_item('CHARACTERISTIC', vname, contents)
 
             else:
                 # text = measure_template.format(
@@ -1306,8 +1332,14 @@ class AsapJson:
                 contents += set_contents_from_list(con_list, dic_g[key], indent=6)
 
             group_text += set_template_item('GROUP', key, contents)
+        
+        def get_XCP_template(cro=0, dto=2):
+            return XCP_template.format(cro=ccp_protocol['cro'],
+                                        dto=ccp_protocol['dto'])
 
-        a2l_text = begin_project + conv_texts + measure_texts + group_text + end_project
+        a2l_text = begin_project \
+                +  get_XCP_template() \
+                + conv_texts + measure_texts + group_text + end_project
 
         with open(a2l_fname, 'w') as f:
             f.write(a2l_text)
@@ -1315,7 +1347,7 @@ class AsapJson:
 if __name__=='__main__':
     aj = AsapJson()
     aj.from_json('variable2.json')
-    aj.to_csv('template.csv')
-    # aj.to_a2l('template.a2l')
-    aj.from_csv('template.csv')
-    aj.to_json('test.json')
+    # aj.to_csv('template.csv')
+    aj.to_a2l('template.a2l', {'cro':1, 'dto':2})
+    # aj.from_csv('template.csv')
+    # aj.to_json('test.json')
