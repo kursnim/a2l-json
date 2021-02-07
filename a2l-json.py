@@ -830,7 +830,7 @@ OVERLOAD_INDICATION_EVENT: This means an event is set, when an overload occurs*/
         PGM_MODE_ABSOLUTE
         0x00
         0x00
-      /end PGM\n'''
+      /end PGM'''
 
 XCP_template='''
       /begin XCP_ON_CAN
@@ -985,7 +985,7 @@ map_template = '''    /begin CHARACTERISTIC {var_name} ""
         DISPLAY 0 {display_range}
       /end IF_DATA
       SYMBOL_LINK "{var_name}{var_map}" 0
-      FORMAT "%.15"
+      FORMAT "%.3"
     /end CHARACTERISTIC\n\n'''
 
 
@@ -994,7 +994,7 @@ axis_subtemplate = '''      /begin AXIS_DESCR
         FIX_AXIS NO_INPUT_QUANTITY {compu_method}  {axis} {var_range}
         EXTENDED_LIMITS {var_range}
         DEPOSIT ABSOLUTE
-        FORMAT "%.15"
+        FORMAT "%.3"
         FIX_AXIS_PAR_DIST 0 1 {axis}
       /end AXIS_DESCR\n'''
 
@@ -1002,7 +1002,7 @@ s_axis_subtemplate = '''      /begin AXIS_DESCR
         COM_AXIS NO_INPUT_QUANTITY {compu_method}  {axis} {var_range}
         EXTENDED_LIMITS {var_range}
         DEPOSIT ABSOLUTE
-        FORMAT "%.15"
+        FORMAT "%.3"
         AXIS_PTS_REF {var_name}
       /end AXIS_DESCR\n'''
 
@@ -1017,7 +1017,7 @@ s_axis_template = '''    /begin AXIS_PTS {var_name} ""
         DISPLAY 0 {display_range}
       /end IF_DATA
       SYMBOL_LINK "{var_name}{var_map}" 0
-      FORMAT "%.15"
+      FORMAT "%.3"
     /end AXIS_PTS\n\n'''
 
 
@@ -1026,7 +1026,7 @@ measure_template = '''    /begin MEASUREMENT {var_name} ""
       READ_WRITE
       ECU_ADDRESS {var_addr}
       ECU_ADDRESS_EXTENSION 0x0
-      FORMAT "%.15"
+      FORMAT "%.3"
 {matrix}{layout}      /begin IF_DATA CANAPE_EXT
         100
         LINK_MAP "{var_name}{var_map}" {var_addr} 0 0 0 0 0 0
@@ -1042,6 +1042,9 @@ conv_template = '''    /begin COMPU_METHOD {var_name}.CONVERSION "@@@@RuleName c
 
 item_template = '''{indent}/begin {ID} {ID_NAME} {comment}
 {contents}{indent}/end {ID}\n'''
+
+sub_item_template = '''{indent}/begin {ID}
+{contents}{indent}/end {ID}'''
     
 def read_jsonc(fname):
     with open(fname, 'r') as f:
@@ -1064,12 +1067,12 @@ class AsapJson:
         self.dic_var = dic_con['variable']
 
         # map : put last to the map caused shared axis
-        self.list_sorted_var = [d for d in self.dic_var 
-                if not 'A2L_TYPE' in self.dic_var[d] 
-                or self.dic_var[d]['A2L_TYPE'] != 'MAP']
-        self.list_sorted_var += [d for d in self.dic_var 
+        self.list_sorted_var = sorted([d for d in self.dic_var 
+                if not 'A2L_TYPE' in self.dic_var[d]
+                or self.dic_var[d]['A2L_TYPE'] != 'MAP'])
+        self.list_sorted_var += sorted([d for d in self.dic_var 
                 if 'A2L_TYPE' in self.dic_var[d] 
-                and self.dic_var[d]['A2L_TYPE'] == 'MAP']
+                and self.dic_var[d]['A2L_TYPE'] == 'MAP'])
         self.dic_type = dic_con['type']
         self.dic_size = dic_con['type_size']
         self.dic_range = dic_con['type_range']
@@ -1092,10 +1095,10 @@ class AsapJson:
         m = re.search(r'{0}\s+\|\s+0x([0-9a-fA-F]{{8}})'.format(var_name), self.mapdata)
         if m:
             var_addr = '0x{0}'.format(m.group(1).upper())
-            print(var_addr)
+            # print(var_addr)
     
     def from_csv(self, csv_fname):
-        with open(csv_fname, 'r') as f:
+        with open(csv_fname, 'r', newline='') as f:
             reader = csv.DictReader(f)
             dic_var_from_csv = {}
             for row in reader:
@@ -1113,7 +1116,7 @@ class AsapJson:
             self.dic_var.update(dic_var_from_csv)
 
     def to_csv(self, csv_fname):
-        with open(csv_fname, 'w') as f:
+        with open(csv_fname, 'w', newline='') as f:
             fieldnames = ['name', 'type', 'group', 'address', 'conv', 'A2L_TYPE', 'array', 'shared_axis_x', 'shared_axis_y', 'shared_axis_z']
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
@@ -1130,35 +1133,15 @@ class AsapJson:
 
 
     def to_a2l(self, a2l_fname, ccp_protocol={'cro':0, 'dto':2}):
-        def apply_axis_template(axis, sub_axis):
-            _template = sub_axis
-            for a in ['x','y']:
-                if axis[a] >= 1:
-                        _template[a] = axis_subtemplate.format(
-                            var_range=var_range,
-                            compu_method='NO_COMPU_METHOD',
-                            axis=axis[a])
-                if 'shared_axis' in v:
-                    if a in v['shared_axis']:
-                        if v['shared_axis'][a] in dic_shared_axis:
-                            shared_a = dic_shared_axis[v['shared_axis'][a]]
-                            _template[a] = s_axis_subtemplate.format(
-                                var_name=v['shared_axis'][a],
-                                var_range=shared_a['var_range'],
-                                compu_method=shared_a['compu_method'],
-                                axis=axis[a]
-                    )
-            return _template
-        
         def apply_array(text_array):
             m = re.search(r'(\[(?P<x>\d+)\])(\[(?P<y>\d+)\])?(\[(?P<z>\d+)\])?', text_array)
             if m:
                 axis = {}
                 axis['x'] = int(m.group('x')) if m.group('x') else 1
                 axis['y'] = int(m.group('y')) if m.group('y') else 1
-                axis['z'] = int(m.group('z')) if m.group('z') else 1
-                matrix = '      MATRIX_DIM {0} {1} {2}\n'\
-                        .format(axis['x'], axis['y'], axis['z'])
+                # axis['z'] = int(m.group('z')) if m.group('z') else 1
+                matrix = '      MATRIX_DIM {0} {1}\n'\
+                        .format(axis['x'], axis['y']) #axis['z'])
                 layout = '      LAYOUT ROW_DIR\n'
 
                 var_map = ''
@@ -1166,8 +1149,8 @@ class AsapJson:
                     var_map += '._0_'
                 if axis['y'] > 1:
                     var_map += '._0_'
-                if axis['z'] > 1:
-                    var_map += '._0_'
+                # if axis['z'] > 1:
+                #     var_map += '._0_'
             return matrix, layout, var_map, axis
         
         def apply_conv(vname, v):
@@ -1185,7 +1168,7 @@ class AsapJson:
                             ID=key,
                             ID_NAME='',
                             comment='',
-                            contents=set_contents(dictionary[key], indent+2))
+                            contents=set_contents(sorted(dictionary[key]), indent+2))
             else:
                 return ''
 
@@ -1197,13 +1180,19 @@ class AsapJson:
                     comment='""',
                     contents=contents) + '\n'
 
+        def set_template_sub_item(item, contents, indent=4):
+            return sub_item_template.format(
+                    indent=' '*indent,
+                    ID=item,
+                    contents=contents) + '\n'
+
         def set_contents(list_item, indent=4):
             return ''.join(['{s}{0}\n'.format(d, s=' '*indent) for d in list_item])
         def set_content(text, indent=6):
             return '{s}{0}\n'.format(text, s=' '*indent)
-        def set_link_map(text, indent=6):
-            return '{s}/begin IF_DATA CANAPE_EXT\n{s2}100\n{s2}LINK_MAP "{0}" 0 0 0 0 0 0 0\n{s}/end IF_DATA\n'.format(
-                    text, s=' '*indent, s2=' '*(indent+2))
+        def set_link_map(text, display_range, indent=6):
+            return '{s}/begin IF_DATA CANAPE_EXT\n{s2}100\n{s2}LINK_MAP "{0}" 0 0 0 0 0 0 0\n{s2}DISPLAY 0 {display_range}\n{s}/end IF_DATA\n'.format(
+                    text, s=' '*indent, s2=' '*(indent+2), display_range=display_range)
         def append_value(dict_obj, key, value):
             if key not in dict_obj:
                 dict_obj[key] = {value}
@@ -1213,20 +1202,35 @@ class AsapJson:
         dic_g = {}
         for vname in self.list_sorted_var:
             v = self.dic_var[vname]
+
+            if 'conv' in v:
+                conv_texts += conv_template.format(
+                var_name=vname,
+                conv=v['conv'])
+
+                var_range_min = 0 if self.dic_range[v['type']][0] == '0' else \
+                    str(float(self.dic_range[v['type']][0]) * float(v['conv']))
+                var_range_max = str(float(self.dic_range[v['type']][1]) * float(v['conv']))          
+
+                var_range = '{0} {1}'.format(var_range_min, var_range_max)
+            else:
+                var_range = ' '.join(self.dic_range[v['type']])
+                
             if 'array' in v:
                 matrix, layout, var_map, axis = apply_array(v['array'])
             else:
-                matrix, layout, var_map, axis = '', '', '', {'x':'','y':'','z':''}
+                matrix, layout, var_map, axis = '', '', '', {'x':'','y':''}
 
             var_addr = '0x0'
             if hasattr(self, 'mapdata'):
                 m = re.search(r'{0}\s+(0x[0-9a-fA-F]{{8}})'.format(v['name']), self.mapdata)
                 if m:
                     var_addr = m.group(1)
-            sub_axis = {'x':'','y':'','z':''}
+            sub_axis = {'x':'','y':''}
             compu_method = apply_conv(vname, v)
-            var_range = self.dic_range[v['type']]
+            
             var_type = self.dic_type[v['type']]
+
 
             if 'A2L_TYPE' in v:
                 if v['A2L_TYPE'] == 'shared_axis':
@@ -1247,42 +1251,47 @@ class AsapJson:
                         axis=axis['x'],
                         compu_method=compu_method,
                         sub_axis=''.join(sub_axis.values()))
-                elif v['A2L_TYPE'] == 'MAP':
-                    template = map_template
-                    sub_axis = apply_axis_template(axis, sub_axis)
-                    measure_text = template.format(
-                        var_name=vname,
-                        var_type=self.dic_type[v['type']],
-                        matrix=matrix,
-                        layout=layout,
-                        var_addr=var_addr,
-                        var_map=var_map,
-                        var_range=var_range,
-                        display_range=var_range,
-                        axis=axis['x'],
-                        compu_method=compu_method,
-                        sub_axis=''.join(sub_axis.values()))
+                elif v['A2L_TYPE'] == 'PAR':
+                    # todo
+                    pass
+                
                 elif v['A2L_TYPE'] == 'STRING':
                     contents = set_content('ASCII {var_addr} __{var_type}_Z 0 NO_COMPU_METHOD 0 255'.format(
                         var_addr=var_addr,
                         var_type=var_type))
-                    contents += set_content('NUMBER {0}'.format(x))
-                    contents += set_link_map(vname)
+                    contents += set_content('NUMBER {0}'.format(axis['y']))
+                    contents += set_link_map(vname+var_map, var_range)
+                    contents += set_content('SYMBOL_LINK "{var_name}{var_map}" 0'.format(var_name=vname, var_map=var_map))
+                    
                     measure_text = set_template_item('CHARACTERISTIC', vname, contents)
-                # elif v['A2L_TYPE'] == 'MAP':
-                #     contents = set_content('MAP 0 RL_{0} 0 NO_COMPU_METHOD 0 255'.format(var_type))
-                #     contents += set_content('NUMBER {0}'.format(x))
-                #     contents += set_link_map(vname)
-                #     measure_text = set_template_item('CHARACTERISTIC', vname, contents)
+                elif v['A2L_TYPE'] == 'MAP':
+                    contents = set_content('MAP {var_addr} __{var_type}_S 0 {compu_method} {var_range}'.format(
+                        var_addr=var_addr,
+                        var_type=var_type,
+                        compu_method=compu_method,
+                        var_range=var_range))
+                    contents += set_content('ECU_ADDRESS_EXTENSION 0x0')
+                    contents += set_content('EXTENDED_LIMITS {var_range}'.format(var_range=var_range), 6)
 
+                    for a in ['x', 'y']:
+                        if 'shared_axis' in v and a in v['shared_axis'] and v['shared_axis'][a] in dic_shared_axis:
+                            shared_a = dic_shared_axis[v['shared_axis'][a]]
+                            sub_contents = set_content('COM_AXIS NO_INPUT_QUANTITY {0}.CONVERSION  {1} {2}'.format(v['shared_axis'][a], axis[a], shared_a['var_range']), 8)
+                            sub_contents += set_content('EXTENDED_LIMITS {0}'.format(shared_a['var_range']), 8)
+                            sub_contents += set_content('DEPOSIT ABSOLUTE ', 8)
+                            sub_contents += set_content('FORMAT "%.3"', 8)
+                            sub_contents += set_content('AXIS_PTS_REF {0}'.format(v['shared_axis'][a]), 8)
+                            contents += set_template_sub_item('AXIS_DESCR', sub_contents, 6)
+                        else:
+                            sub_contents = set_content('FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD {axis} 0 0'.format(axis=axis[a]), 8)
+                            sub_contents += set_content('FIX_AXIS_PAR_DIST 0 1 {axis}'.format(axis=axis[a]), 8)
+                            contents += set_template_sub_item('AXIS_DESCR', sub_contents, 6)
+                    contents += set_link_map(vname+var_map, var_range)
+                    contents += set_content('SYMBOL_LINK "{var_name}{var_map}" 0'.format(var_name=vname, var_map=var_map))
+                    contents += set_content('FORMAT "%.3"')
+
+                    measure_text = set_template_item('CHARACTERISTIC', vname, contents)
             else:
-                # text = measure_template.format(
-                #     var_name=var_name,
-                #     var_type=var_type,
-                #     array=array,
-                #     var_addr=var_addr,
-                #     _0_=_0_
-                # )
                 template = measure_template
                 measure_text = template.format(
                 var_name=vname,
@@ -1296,13 +1305,9 @@ class AsapJson:
                 axis=axis['x'],
                 compu_method=compu_method,
                 sub_axis=''.join(sub_axis.values()))
+                
             measure_texts += measure_text
-
-            if 'conv' in v:
-                conv_texts += conv_template.format(
-                var_name=vname,
-                conv=v['conv'])
-
+            
             if 'group' in v:
                 root_group, list_sub_group = v['group'].split('/')[0], v['group'].split('/')
                 
@@ -1323,7 +1328,7 @@ class AsapJson:
                     append_value(dic_g[list_sub_group[-1]], 'REF_CHARACTERISTIC', vname)
 
         group_text = ''
-        for key in dic_g:
+        for key in sorted(dic_g):
             contents = ''
             if dic_g[key]['type'] == 'GROUP':
                 contents = set_content('ROOT')
@@ -1346,7 +1351,7 @@ class AsapJson:
 
 if __name__=='__main__':
     aj = AsapJson()
-    aj.from_json('variable2.json')
+    aj.from_json('var.json')
     # aj.to_csv('template.csv')
     aj.to_a2l('template.a2l', {'cro':1, 'dto':2})
     # aj.from_csv('template.csv')
